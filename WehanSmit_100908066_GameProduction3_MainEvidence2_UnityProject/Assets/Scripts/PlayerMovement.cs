@@ -28,7 +28,7 @@ public class PlayerMovement : MonoBehaviour
     void Awake()
     {
        
-       JumpSlider.SetEnabled(false);
+       
     }
 
     // Update is called once per frame
@@ -56,8 +56,8 @@ public class PlayerMovement : MonoBehaviour
         
         if (Input.GetKey(KeyCode.Space) && grounded)
         {
-            JumpSlider.SetEnabled(true);
-            JumpSlider.value = currentjump/Maxjump;
+            
+            
             if (currentjump < Maxjump)
             {
                 currentjump += JumpIncrement;
@@ -91,8 +91,7 @@ public class PlayerMovement : MonoBehaviour
         rb.AddForce(JumpVec, ForceMode2D.Impulse);
         currentjump = 0f;
         charging = false;
-        JumpSlider.value = 0f;
-        JumpSlider.SetEnabled(false);
+        
     }
 
     private void OnCollisionEnter2D(Collision2D other)
