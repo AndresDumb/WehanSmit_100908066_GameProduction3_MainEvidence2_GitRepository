@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Mirror
 {
@@ -1355,13 +1357,30 @@ namespace Mirror
         }
 
         /// <summary>Like Start(), but only called on server and host.</summary>
-        public virtual void OnStartServer() {}
+        public virtual void OnStartServer()
+        {
+            if (SceneManager.GetActiveScene().name == "MainMenu")
+            {
+                var spawnPrefabs = Resources.LoadAll<GameObject>("SpawnablePrefabs").ToList();
+            }
+            
+        }
 
         /// <summary>Stop event, only called on server and host.</summary>
         public virtual void OnStopServer() {}
 
         /// <summary>Like Start(), but only called on client and host.</summary>
-        public virtual void OnStartClient() {}
+        public virtual void OnStartClient()
+        {
+            if (SceneManager.GetActiveScene().name == "MainMenu")
+            {
+                var spawnablePrefabs = Resources.LoadAll<GameObject>("SpawnablePrefabs");
+                foreach (var prefab in spawnablePrefabs)
+                {
+                    NetworkClient.RegisterPrefab(prefab);
+                }
+            }
+        }
 
         /// <summary>Stop event, only called on client and host.</summary>
         public virtual void OnStopClient() {}

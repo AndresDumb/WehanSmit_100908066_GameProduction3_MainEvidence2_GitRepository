@@ -331,8 +331,8 @@ MonoBehaviour:
   headlessStartMode: 0
   editorAutoStart: 0
   sendRate: 60
-  offlineScene: 
-  onlineScene: 
+  offlineScene: Assets/Scenes/MainMenu.unity
+  onlineScene: Assets/Scenes/SampleScene.unity
   offlineSceneLoadDelay: 0
   transport: {fileID: 475139343}
   networkAddress: localhost

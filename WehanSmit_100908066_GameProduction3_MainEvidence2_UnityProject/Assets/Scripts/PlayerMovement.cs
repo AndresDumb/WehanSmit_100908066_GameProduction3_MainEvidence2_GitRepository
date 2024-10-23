@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 
 public class PlayerMovement : MonoBehaviour
 {
-    
+    [SerializeField] private string DisplayName = null;
     public Camera Cam;
     public Slider JumpSlider;
     public float MovementSpeed;
@@ -34,7 +34,7 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        DisplayName = PlayerPrefs.GetString("PlayerName");
         Cam.transform.position = new Vector3(0f, transform.position.y, Cam.transform.position.z);
         
 

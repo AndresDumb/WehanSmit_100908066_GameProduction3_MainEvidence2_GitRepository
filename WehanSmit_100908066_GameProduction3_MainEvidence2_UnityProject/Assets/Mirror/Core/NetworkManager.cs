@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 
+
 namespace Mirror
 {
     public enum PlayerSpawnMethod { Random, RoundRobin }
@@ -16,6 +17,16 @@ namespace Mirror
     [HelpURL("https://mirror-networking.gitbook.io/docs/components/network-manager")]
     public class NetworkManager : MonoBehaviour
     {
+
+        [SerializeField] private NetworkRoomPlayerLobby NRPLPrefab;
+        [Scene] private string menuScene = string.Empty;
+        
+        
+        public List<NetworkRoomPlayerLobby> roomPlayers { get; } = new List<NetworkRoomPlayerLobby>();
+        public List<NetworkRoomGameLobby> GamePlayers { get; } = new List<NetworkRoomGameLobby>();
+        public static event Action OnClientConnected;
+        public static event Action OnClientDisconnected;
+        
         /// <summary>Enable to keep NetworkManager alive when changing scenes.</summary>
         // This should be set if your game has a single NetworkManager that exists for the lifetime of the process. If there is a NetworkManager in each scene, then this should not be set.</para>
         [Header("Configuration")]
@@ -179,6 +190,14 @@ namespace Mirror
             {
                 Debug.LogWarning("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
                 spawnPrefabs.Remove(playerPrefab);
+            }
+        }
+
+        public void StartGame()
+        {
+            if (SceneManager.GetActiveScene().path == menuScene)
+            {
+                ServerChangeScene("GameScene");
             }
         }
 
@@ -798,6 +817,22 @@ namespace Mirror
         // the change and ready again to participate in the new scene.
         public virtual void ServerChangeScene(string newSceneName)
         {
+            if (SceneManager.GetActiveScene().path == menuScene)
+            {
+                for (int i = roomPlayers.Count-1; i >= 0; i--)
+                {
+                    var conn = roomPlayers[i].connectionToClient;
+                    Transform startPos = GetStartPosition();
+                    GameObject player = startPos != null
+                        ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
+                        : Instantiate(playerPrefab);
+                    player.name = $"{playerPrefab.name} [connId={conn.connectionId}]";
+                    NetworkRoomGameLobby playerNRGL = player.GetComponent<NetworkRoomGameLobby>();
+                    playerNRGL.SetDisplay();
+                    NetworkServer.Destroy(conn.identity.gameObject);
+                    NetworkServer.ReplacePlayerForConnection(conn, player);
+                }
+            }
             if (string.IsNullOrWhiteSpace(newSceneName))
             {
                 Debug.LogError("ServerChangeScene empty scene name");
@@ -844,6 +879,8 @@ namespace Mirror
 
             startPositionIndex = 0;
             startPositions.Clear();
+            
+            
         }
 
         // This is only set in ClientChangeScene below...never on server.
@@ -1299,6 +1336,7 @@ namespace Mirror
         // wrap ClientChangeScene call without parameters for use in Invoke.
         void ClientChangeOfflineScene() =>
             ClientChangeScene(offlineScene, SceneOperation.Normal);
+        
 
         void OnClientNotReadyMessageInternal(NotReadyMessage msg)
         {
@@ -1319,7 +1357,23 @@ namespace Mirror
         }
 
         /// <summary>Called on the server when a new client connects.</summary>
-        public virtual void OnServerConnect(NetworkConnectionToClient conn) { }
+        public virtual void OnServerConnect(NetworkConnectionToClient conn)
+        {
+            if (numPlayers >= maxConnections)
+            {
+                conn.Disconnect();
+                return;
+            }
+
+            if (SceneManager.GetActiveScene().path != menuScene)
+            {
+                conn.Disconnect();
+                return;
+            }
+
+            
+            
+        }
 
         /// <summary>Called on the server when a client disconnects.</summary>
         // Called by NetworkServer.OnTransportDisconnect!
@@ -1328,7 +1382,14 @@ namespace Mirror
             // by default, this function destroys the connection's player.
             // can be overwritten for cases like delayed logouts in MMOs to
             // avoid players escaping from PvP situations by logging out.
+            if (conn.identity != null)
+            {
+                var player = conn.identity.GetComponent<NetworkRoomPlayerLobby>();
+                roomPlayers.Remove(player);
+                
+            }
             NetworkServer.DestroyPlayerForConnection(conn);
+            
             //Debug.Log("OnServerDisconnect: Client disconnected.");
         }
 
@@ -1347,15 +1408,17 @@ namespace Mirror
         // The default implementation for this function creates a new player object from the playerPrefab.
         public virtual void OnServerAddPlayer(NetworkConnectionToClient conn)
         {
-            Transform startPos = GetStartPosition();
-            GameObject player = startPos != null
-                ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
-                : Instantiate(playerPrefab);
+            if (SceneManager.GetActiveScene().path == menuScene)
+            {
+                
+                NetworkRoomPlayerLobby roomPlayerInstance = Instantiate(NRPLPrefab);
+                NetworkServer.AddPlayerForConnection(conn, roomPlayerInstance.gameObject);
 
-            // instantiating a "Player" prefab gives it the name "Player(clone)"
-            // => appending the connectionId is WAY more useful for debugging!
-            player.name = $"{playerPrefab.name} [connId={conn.connectionId}]";
-            NetworkServer.AddPlayerForConnection(conn, player);
+            }
+            
+                
+                
+            
         }
 
         /// <summary>Called on server when transport raises an exception. NetworkConnection may be null.</summary>
@@ -1363,6 +1426,7 @@ namespace Mirror
 
         /// <summary>Called on server when transport raises an exception. NetworkConnection may be null.</summary>
         public virtual void OnServerTransportException(NetworkConnectionToClient conn, Exception exception) { }
+        
 
         /// <summary>Called from ServerChangeScene immediately before SceneManager.LoadSceneAsync is executed</summary>
         public virtual void OnServerChangeScene(string newSceneName) { }
@@ -1386,10 +1450,14 @@ namespace Mirror
                 if (autoCreatePlayer)
                     NetworkClient.AddPlayer();
             }
+            OnClientConnected?.Invoke();
         }
 
         /// <summary>Called on clients when disconnected from a server.</summary>
-        public virtual void OnClientDisconnect() { }
+        public virtual void OnClientDisconnect()
+        {
+            OnClientDisconnected?.Invoke();
+        }
 
         /// <summary>Called on client when transport raises an exception.</summary>
         public virtual void OnClientError(TransportError error, string reason) { }
@@ -1436,7 +1504,10 @@ namespace Mirror
         public virtual void OnStartClient() { }
 
         /// <summary>This is called when a server is stopped - including when a host is stopped.</summary>
-        public virtual void OnStopServer() { }
+        public virtual void OnStopServer()
+        {
+            roomPlayers.Clear();
+        }
 
         /// <summary>This is called when a client is stopped.</summary>
         public virtual void OnStopClient() { }
