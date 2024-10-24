@@ -10,6 +10,7 @@ public class MainMenu : MonoBehaviour
 
     public void HostLobby()
     {
+        
         networkManager.StartHost();
         landingPage.SetActive(false);
     }

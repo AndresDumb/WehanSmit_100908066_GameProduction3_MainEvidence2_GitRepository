@@ -40,18 +40,15 @@ public class NetworkRoomGameLobby : NetworkBehaviour
     public override void OnStartClient()
     {
         DontDestroyOnLoad(gameObject);
-        Room.GamePlayers.Add(this);
-       
     }
 
-    public override void OnStopClient()
-    {
-        Room.GamePlayers.Remove(this);
-    }
+    
+
+    
     [Server]
-    public void SetDisplay()
+    public void SetDisplay(string Display)
     {
-        this.displayName = PlayerPrefs.GetString("PlayerName");
+        this.displayName = Display;
     }
     
     

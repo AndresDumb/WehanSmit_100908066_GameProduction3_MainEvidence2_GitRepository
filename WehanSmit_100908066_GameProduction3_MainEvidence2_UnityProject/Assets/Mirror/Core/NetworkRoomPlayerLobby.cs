@@ -12,6 +12,7 @@ public class NetworkRoomPlayerLobby : NetworkBehaviour
     [SerializeField] private GameObject LobbyUI = null;
     [SerializeField] private Text[] playerNames = new Text[4];
     [SerializeField] private Button StartButton = null;
+    public NetworkConnection conn;
     
     
 
@@ -42,6 +43,7 @@ public class NetworkRoomPlayerLobby : NetworkBehaviour
             }
 
             return room = NetworkManager.singleton;
+            
 
 
         }
@@ -49,6 +51,7 @@ public class NetworkRoomPlayerLobby : NetworkBehaviour
 
     public override void OnStartAuthority()
     {
+        
         DisplayName = PlayerPrefs.GetString("PlayerName");
         
         CmdSetDisplayName(DisplayName);
@@ -65,8 +68,12 @@ public class NetworkRoomPlayerLobby : NetworkBehaviour
     public override void OnStartClient()
     {
         Room.roomPlayers.Add(this);
-        
         UpdateDisplay();
+    }
+    
+    public override void OnStopClient()
+    {
+        Room.roomPlayers.Remove(this);
     }
 
     public void HandleDisplayNameChanged(string oldValue, string newValue) => UpdateDisplay();
@@ -110,6 +117,8 @@ public class NetworkRoomPlayerLobby : NetworkBehaviour
         {
             return;
         }
+
+        Debug.Log("Button Pressed");
         Room.StartGame();
     }
 }

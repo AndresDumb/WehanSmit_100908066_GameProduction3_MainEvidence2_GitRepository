@@ -267,7 +267,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   networkManager: {fileID: 1539701794}
-  _Canvas: {fileID: 0}
+  _Canvas: {fileID: 1179362277}
   landingPage: {fileID: 1381687153}
   ipAddressField: {fileID: 629593585}
   joinButton: {fileID: 1139453184}
@@ -2443,14 +2443,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8aab4c8111b7c411b9b92cf3dbc5bd4e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerSpawnSystem: {fileID: 9115093722828923225, guid: d2ebc2be8ce2e4c608f1fd27629270d4, type: 3}
+  XSpawnPos: []
   NRPLPrefab: {fileID: 35576595873594760, guid: 3cf5e416e73544469a90ec71c90d13e2, type: 3}
+  NRGLPrefab: {fileID: 1687104114181288430, guid: f46ce68b429cb4733a618f99bdc35564, type: 3}
+  menuScene: Assets/Scenes/MainMenu.unity
+  gameScene: Assets/Scenes/GameScene.unity
   dontDestroyOnLoad: 1
   runInBackground: 1
   headlessStartMode: 0
   editorAutoStart: 0
   sendRate: 60
   offlineScene: 
-  onlineScene: Assets/Scenes/MainMenu.unity
+  onlineScene: 
   offlineSceneLoadDelay: 0
   transport: {fileID: 1539701796}
   networkAddress: localhost
@@ -2463,6 +2468,8 @@ MonoBehaviour:
   playerSpawnMethod: 0
   spawnPrefabs:
   - {fileID: 5591705929552792738, guid: 3cf5e416e73544469a90ec71c90d13e2, type: 3}
+  - {fileID: 5591705929552792738, guid: f46ce68b429cb4733a618f99bdc35564, type: 3}
+  - {fileID: 9115093722828923225, guid: d2ebc2be8ce2e4c608f1fd27629270d4, type: 3}
   exceptionsDisconnect: 1
   snapshotSettings:
     bufferTimeMultiplier: 2
