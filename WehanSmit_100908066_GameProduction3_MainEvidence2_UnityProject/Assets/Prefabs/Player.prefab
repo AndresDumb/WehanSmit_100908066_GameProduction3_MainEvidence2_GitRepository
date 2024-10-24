@@ -262,6 +262,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 758fd18f8189a42229f12ede3d6fbe98, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  DisplayName: 
   Cam: {fileID: 8957823224705009534}
   MovementSpeed: 13
   Maxjump: 15
@@ -366,7 +367,6 @@ GameObject:
   m_Component:
   - component: {fileID: 969011152611094770}
   - component: {fileID: 8957823224705009534}
-  - component: {fileID: 4347745897857957251}
   - component: {fileID: 3418897473113922820}
   m_Layer: 0
   m_Name: Camera
@@ -441,14 +441,6 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!81 &4347745897857957251
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6552468569104696491}
-  m_Enabled: 1
 --- !u!114 &3418897473113922820
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
+using Random = System.Random;
+
 
 namespace Mirror
 {
@@ -16,6 +18,22 @@ namespace Mirror
     [HelpURL("https://mirror-networking.gitbook.io/docs/components/network-manager")]
     public class NetworkManager : MonoBehaviour
     {
+        
+        private int Index = 0;
+        [SerializeField] private GameObject playerSpawnSystem = null;
+        [SerializeField] private List<float> XSpawnPos = new List<float>(4);
+        [SerializeField] private NetworkRoomPlayerLobby NRPLPrefab;
+        [SerializeField] private NetworkRoomGameLobby NRGLPrefab;
+        [SerializeField] [Scene] private string menuScene = string.Empty;
+        [SerializeField] [Scene] private string gameScene = string.Empty;
+        
+        
+        public List<NetworkRoomPlayerLobby> roomPlayers { get; } = new List<NetworkRoomPlayerLobby>();
+        public List<NetworkRoomGameLobby> GamePlayers { get; } = new List<NetworkRoomGameLobby>();
+        public static event Action OnClientConnected;
+        public static event Action OnClientDisconnected;
+        public static event Action<NetworkConnection> OnServerReadied; 
+        
         /// <summary>Enable to keep NetworkManager alive when changing scenes.</summary>
         // This should be set if your game has a single NetworkManager that exists for the lifetime of the process. If there is a NetworkManager in each scene, then this should not be set.</para>
         [Header("Configuration")]
@@ -179,6 +197,14 @@ namespace Mirror
             {
                 Debug.LogWarning("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
                 spawnPrefabs.Remove(playerPrefab);
+            }
+        }
+
+        public void StartGame()
+        {
+            if (SceneManager.GetActiveScene().path == menuScene)
+            {
+                ServerChangeScene(gameScene);
             }
         }
 
@@ -780,9 +806,10 @@ namespace Mirror
         // virtual so that inheriting classes' OnDestroy() can call base.OnDestroy() too
         public virtual void OnDestroy()
         {
-            //Debug.Log("NetworkManager destroyed");
+             //Debug.Log("NetworkManager destroyed");
         }
 
+        
         /// <summary>The name of the current network scene.</summary>
         // set by NetworkManager when changing the scene.
         // new clients will automatically load this scene.
@@ -798,6 +825,25 @@ namespace Mirror
         // the change and ready again to participate in the new scene.
         public virtual void ServerChangeScene(string newSceneName)
         {
+            if (SceneManager.GetActiveScene().path == menuScene)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    XSpawnPos.Add(-6f + (4f * i));
+                }
+                for (int i = roomPlayers.Count-1; i >= 0; i--)
+                {
+                    var conn = roomPlayers[i].connectionToClient;
+                    Transform startPos = GetStartPosition();
+                    NetworkRoomGameLobby player = startPos != null
+                        ? Instantiate(NRGLPrefab, new Vector3(XSpawnPos[i], -1f, 0f), startPos.rotation)
+                        : Instantiate(NRGLPrefab);
+                    player.name = $"{playerPrefab.name} [connId={conn.connectionId}]";
+                    player.SetDisplay(roomPlayers[i].DisplayName);
+                    NetworkServer.Destroy(conn.identity.gameObject);
+                    NetworkServer.ReplacePlayerForConnection(conn, player.gameObject);
+                }
+            }
             if (string.IsNullOrWhiteSpace(newSceneName))
             {
                 Debug.LogError("ServerChangeScene empty scene name");
@@ -844,6 +890,8 @@ namespace Mirror
 
             startPositionIndex = 0;
             startPositions.Clear();
+            
+            
         }
 
         // This is only set in ClientChangeScene below...never on server.
@@ -1299,6 +1347,7 @@ namespace Mirror
         // wrap ClientChangeScene call without parameters for use in Invoke.
         void ClientChangeOfflineScene() =>
             ClientChangeScene(offlineScene, SceneOperation.Normal);
+        
 
         void OnClientNotReadyMessageInternal(NotReadyMessage msg)
         {
@@ -1319,7 +1368,23 @@ namespace Mirror
         }
 
         /// <summary>Called on the server when a new client connects.</summary>
-        public virtual void OnServerConnect(NetworkConnectionToClient conn) { }
+        public virtual void OnServerConnect(NetworkConnectionToClient conn)
+        {
+            if (numPlayers >= maxConnections)
+            {
+                conn.Disconnect();
+                return;
+            }
+
+            if (SceneManager.GetActiveScene().path != menuScene)
+            {
+                conn.Disconnect();
+                return;
+            }
+
+            
+            
+        }
 
         /// <summary>Called on the server when a client disconnects.</summary>
         // Called by NetworkServer.OnTransportDisconnect!
@@ -1328,7 +1393,14 @@ namespace Mirror
             // by default, this function destroys the connection's player.
             // can be overwritten for cases like delayed logouts in MMOs to
             // avoid players escaping from PvP situations by logging out.
+            if (conn.identity != null)
+            {
+                var player = conn.identity.GetComponent<NetworkRoomPlayerLobby>();
+                roomPlayers.Remove(player);
+                
+            }
             NetworkServer.DestroyPlayerForConnection(conn);
+            
             //Debug.Log("OnServerDisconnect: Client disconnected.");
         }
 
@@ -1341,21 +1413,27 @@ namespace Mirror
                 //Debug.Log("Ready with no player object");
             }
             NetworkServer.SetClientReady(conn);
+            OnServerReadied?.Invoke(conn);
         }
 
         /// <summary>Called on server when a client requests to add the player. Adds playerPrefab by default. Can be overwritten.</summary>
         // The default implementation for this function creates a new player object from the playerPrefab.
         public virtual void OnServerAddPlayer(NetworkConnectionToClient conn)
         {
-            Transform startPos = GetStartPosition();
-            GameObject player = startPos != null
-                ? Instantiate(playerPrefab, startPos.position, startPos.rotation)
-                : Instantiate(playerPrefab);
+            
+            if (SceneManager.GetActiveScene().name == "MainMenu")
+            {
+                
+                NetworkRoomPlayerLobby roomPlayerInstance = Instantiate(NRPLPrefab);
+                NetworkServer.AddPlayerForConnection(conn, roomPlayerInstance.gameObject);
+                roomPlayerInstance.conn = conn;
 
-            // instantiating a "Player" prefab gives it the name "Player(clone)"
-            // => appending the connectionId is WAY more useful for debugging!
-            player.name = $"{playerPrefab.name} [connId={conn.connectionId}]";
-            NetworkServer.AddPlayerForConnection(conn, player);
+            }
+            
+            
+                
+                
+            
         }
 
         /// <summary>Called on server when transport raises an exception. NetworkConnection may be null.</summary>
@@ -1363,12 +1441,20 @@ namespace Mirror
 
         /// <summary>Called on server when transport raises an exception. NetworkConnection may be null.</summary>
         public virtual void OnServerTransportException(NetworkConnectionToClient conn, Exception exception) { }
+        
 
         /// <summary>Called from ServerChangeScene immediately before SceneManager.LoadSceneAsync is executed</summary>
         public virtual void OnServerChangeScene(string newSceneName) { }
 
         /// <summary>Called on server after a scene load with ServerChangeScene() is completed.</summary>
-        public virtual void OnServerSceneChanged(string sceneName) { }
+        public virtual void OnServerSceneChanged(string sceneName)
+        {
+            if (sceneName == gameScene)
+            {
+                GameObject playerSpawnSysteminstance = Instantiate(playerSpawnSystem);
+                NetworkServer.Spawn(playerSpawnSysteminstance);
+            }
+        }
 
         /// <summary>Called on the client when connected to a server. By default it sets client as ready and adds a player.</summary>
         public virtual void OnClientConnect()
@@ -1386,10 +1472,14 @@ namespace Mirror
                 if (autoCreatePlayer)
                     NetworkClient.AddPlayer();
             }
+            OnClientConnected?.Invoke();
         }
 
         /// <summary>Called on clients when disconnected from a server.</summary>
-        public virtual void OnClientDisconnect() { }
+        public virtual void OnClientDisconnect()
+        {
+            OnClientDisconnected?.Invoke();
+        }
 
         /// <summary>Called on client when transport raises an exception.</summary>
         public virtual void OnClientError(TransportError error, string reason) { }
@@ -1430,16 +1520,27 @@ namespace Mirror
         public virtual void OnStartHost() { }
 
         /// <summary>This is invoked when a server is started - including when a host is started.</summary>
-        public virtual void OnStartServer() { }
+        public virtual void OnStartServer()
+        {
+        }
 
         /// <summary>This is invoked when the client is started.</summary>
-        public virtual void OnStartClient() { }
+        public virtual void OnStartClient()
+        {
+            
+        }
 
         /// <summary>This is called when a server is stopped - including when a host is stopped.</summary>
-        public virtual void OnStopServer() { }
+        public virtual void OnStopServer()
+        {
+            roomPlayers.Clear();
+        }
 
         /// <summary>This is called when a client is stopped.</summary>
-        public virtual void OnStopClient() { }
+        public virtual void OnStopClient()
+        {
+            
+        }
 
         /// <summary>This is called when a host is stopped.</summary>
         public virtual void OnStopHost() { }
