@@ -4,17 +4,19 @@ using TMPro;
 using UnityEngine;
 using Mirror;
 using Steamworks;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
-public class GameManager : MonoBehaviour
+public class GameManager : NetworkBehaviour
 {
     public List<GameObject> Players = new List<GameObject>();
+    
 
     public GameObject EndScreen;
-    private string EndString = " HAS WON";
+    private string EndString = "GAME OVER";
     public TMP_Text EndText;
 
-    public Button QuitButton;
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -24,20 +26,19 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        foreach (var Player in Players)
-        {
-            
-            if (Player.GetComponent<PlayerMovement>().FlagReached)
-            {
-                FlagReached(Player.GetComponent<PlayerMovement>().Nametext);
-            }
-        }
+        
     }
+
     
-    public void FlagReached(string ID)
+    
+    public void FlagReached()
     {
-        EndString = ID.ToUpper() + EndString;
+        
         EndText.text = EndString;
         EndScreen.SetActive(true);
+        foreach (var Player in Players)
+        {
+            Player.GetComponent<PlayerMovement>().Paused = true;
+        }
     }
 }

@@ -45,7 +45,7 @@ public class SteamLobby : MonoBehaviour
     {
         if (callback.m_eResult != EResult.k_EResultOK)
         {
-            ButtonPublic.SetActive(true);
+            
             ButtonPrivate.SetActive(true);
             ButtonFriends.SetActive(true);
             return;
@@ -74,26 +74,18 @@ public class SteamLobby : MonoBehaviour
         NetManager.networkAddress = hostAddress;
         NetManager.StartClient();
         
-        ButtonPublic.SetActive(false);
+        
         ButtonPrivate.SetActive(false);
         ButtonFriends.SetActive(false);
         Panel.SetActive(false);
         Cam.SetActive(false);
     }
 
-    public void CreatePublicLobby()
-    {
-        ButtonPublic.SetActive(false);
-        ButtonPrivate.SetActive(false);
-        ButtonFriends.SetActive(false);
-        Panel.SetActive(false);
-        Cam.SetActive(false);
-        SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, NetManager.maxConnections);
-    }
+    
 
     public void CreatePrivateLobby()
     {
-        ButtonPublic.SetActive(false);
+       
         ButtonPrivate.SetActive(false);
         ButtonFriends.SetActive(false);
         Panel.SetActive(false);
@@ -103,7 +95,7 @@ public class SteamLobby : MonoBehaviour
 
     public void CreateFriendsOnlyLobby()
     {
-        ButtonPublic.SetActive(false);
+       
         ButtonPrivate.SetActive(false);
         ButtonFriends.SetActive(false);
         Panel.SetActive(false);

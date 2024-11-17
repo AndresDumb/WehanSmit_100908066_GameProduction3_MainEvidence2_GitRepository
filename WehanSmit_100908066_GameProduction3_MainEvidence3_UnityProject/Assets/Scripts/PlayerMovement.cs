@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 using Cinemachine;
@@ -12,7 +13,14 @@ using Button = UnityEngine.UI.Button;
 
 public class PlayerMovement : NetworkBehaviour
 {
+    public bool isWalking;
+    public UnityEvent JumpSound;
+    public UnityEvent StartWalking;
+    public UnityEvent StopWalking;
+    public UnityEvent StunSound;
+    public UnityEvent DashSound;
     [SerializeField] private string DisplayName = null;
+    [SerializeField] private Animator animPlayer = null;
     public bool isHost = false;
     public GameObject Player;
     public Camera  Cam;
@@ -36,10 +44,12 @@ public class PlayerMovement : NetworkBehaviour
     public string Nametext;
     public TMP_Text Name;
     public UnityEngine.UI.Slider JumpBar;
-    public bool FlagReached = false;
+    
     [SerializeField] public GameObject BackgroundPicture;
-    private float stunTimer;
+    private float stunTimer ;
     public float MaxStun;
+    private SpriteRenderer sR;
+    public bool Paused = false;
     
 
     
@@ -49,7 +59,7 @@ public class PlayerMovement : NetworkBehaviour
     // Start is called before the first frame update
     void Awake()
     {
-       
+        sR = GetComponent<SpriteRenderer>();
        GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>().Players.Add(Player);
     }
 
@@ -59,14 +69,25 @@ public class PlayerMovement : NetworkBehaviour
         
         if (isLocalPlayer)
         {
-            isLocal = true;
-            BackgroundPicture.SetActive(true);
+                 isLocal = true;
+                 BackgroundPicture.SetActive(true);
         }
         else
         {
-            isLocal = false;
+                 isLocal = false;
+                 return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
+        
+        if (Paused)
+        {
             return;
         }
+        
 
         if (currentjump > 0f)
         {
@@ -80,7 +101,7 @@ public class PlayerMovement : NetworkBehaviour
         Nametext = SteamUser.GetSteamID().ToString();
         Name.text = Nametext;
         Cam.transform.position = new Vector3(GameObject.FindGameObjectWithTag("CameraCenter").transform.position.x, transform.position.y, Cam.transform.position.z);
-
+        
         
         if (Stunned)
         {
@@ -100,6 +121,21 @@ public class PlayerMovement : NetworkBehaviour
             Jump();
         }
 
+        if (xInput < 0f)
+        {
+            sR.flipX = true;
+        }
+        else
+        {
+           sR.flipX = false;
+        }
+
+        if (Paused && Input.GetKeyDown(KeyCode.Escape))
+        {
+            NetworkClient.Disconnect();
+            
+        }
+
         
         
     }
@@ -107,23 +143,32 @@ public class PlayerMovement : NetworkBehaviour
     private void Stun()
     {
         Stunned = true;
+        StunSound.Invoke();
     }
 
     private void FixedUpdate()
     {
         if (!isLocal)
         {
+                 return;
+        }
+        if (Paused)
+        {
             return;
         }
+        
 
         if (Stunned)
         {
+            currentjump = 0f;
             return;
         }
         SetMovement();
         if (grounded && !charging)
         {
+            animPlayer.SetBool("isJumping", false);
             transform.Translate(Movement);
+            
         }
         
         if (Input.GetKey(KeyCode.Space) && grounded)
@@ -154,19 +199,42 @@ public class PlayerMovement : NetworkBehaviour
     {
         xInput = Input.GetAxis("Horizontal");
         Movement = new Vector2((xInput * MovementSpeed) / 100, 0f);
-        
+        if (xInput != 0f)
+        {
+            animPlayer.SetBool("isWalking",true);
+            animPlayer.SetBool("isJumping", false);
+            if (!isWalking)
+            {
+                StartWalking.Invoke();
+            }
+            isWalking = true;
+        }
+        else
+        {
+            if (isWalking)
+            {
+                StopWalking.Invoke();
+            }
+            animPlayer.SetBool("isWalking", false);
+            isWalking = false;
+        }
     }
 
     private IEnumerator Dash()
     {
         canDash = false;
         Dashing = true;
+        animPlayer.SetBool("isWalking", false);
+        animPlayer.SetBool("isJumping", false);
+        animPlayer.SetBool("isDashing", true);
         tr.emitting = true;
         float ORGravity = rb.gravityScale;
         rb.gravityScale = 0f;
+        DashSound.Invoke();
         rb.velocity = new Vector2(xInput * DashPower, 0f);
         yield return new WaitForSeconds(DashingTime);
         Dashing = false;
+        animPlayer.SetBool("isDashing", false);
         tr.emitting = false;
         rb.gravityScale = ORGravity;
         yield return new WaitForSeconds(DashingCooldown);
@@ -176,9 +244,11 @@ public class PlayerMovement : NetworkBehaviour
     public void Jump()
     {
         Vector2 JumpVec = new Vector2(Movement.x * 50, currentjump);
+        JumpSound.Invoke();
         rb.AddForce(JumpVec, ForceMode2D.Impulse);
         currentjump = 0f;
         charging = false;
+        animPlayer.SetBool("isJumping", true);
         
     }
 
@@ -195,6 +265,7 @@ public class PlayerMovement : NetworkBehaviour
         {
             Stun();
         }
+        
 
         if (other.gameObject.CompareTag("Damage"))
         {
